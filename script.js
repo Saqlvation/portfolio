@@ -164,11 +164,33 @@ async function openCertificate(cert) {
   );
 }
 
+const TICKER_SPEED = 90; // px per second
+
 function setupTicker() {
   const track = document.querySelector(".ticker-track");
-  if (!track || track.dataset.duplicated) return;
-  track.innerHTML += track.innerHTML;
-  track.dataset.duplicated = "true";
+  if (!track) return;
+  const unitHtml = track.innerHTML;
+
+  // The marquee loops by shifting one copy's width, so the track has to stay
+  // wider than the viewport for the whole cycle.
+  const fill = () => {
+    track.innerHTML = unitHtml;
+    const unitWidth = track.scrollWidth;
+    if (!unitWidth) return;
+    const copies = Math.max(2, Math.ceil((window.innerWidth * 2) / unitWidth) + 1);
+    track.innerHTML = unitHtml.repeat(copies);
+    track.style.setProperty("--marquee-shift", `${-100 / copies}%`);
+    track.style.animationDuration = `${unitWidth / TICKER_SPEED}s`;
+  };
+
+  fill();
+  if (document.fonts?.ready) document.fonts.ready.then(fill);
+
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fill, 200);
+  });
 }
 
 function setupReveal() {
