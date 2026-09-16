@@ -19,6 +19,7 @@ const projects = [
     github: "https://github.com/Saqlvation/LiminalGenerator",
     demo: "https://liminal-generator.vercel.app/",
     short: "LIMINAL / IMAGE ENGINE",
+    image: "assets/projects/liminal.png",
   },
   {
     title: "InstaPurge",
@@ -30,6 +31,7 @@ const projects = [
     github: "https://github.com/Saqlvation/instapurge",
     demo: "",
     short: "PYTHON / AUTOMATION",
+    image: "assets/projects/Bot.jpeg",
   },
   {
     title: "FindTheCat",
@@ -41,6 +43,7 @@ const projects = [
     github: "https://github.com/Saqlvation/FindTheCat/tree/main",
     demo: "https://find-the-cat-xi.vercel.app/",
     short: "GAME / EXPERIMENT",
+    image: "assets/projects/findCat.png",
   },
 ];
 
@@ -51,6 +54,7 @@ const certificates = [
     issuer: "Cisco Networking Academy",
     date: "May 01, 2026",
     file: "assets/certificates/english-for-it-1.pdf",
+    image: "assets/certificates/english-for-it-1.png",
     featured: true,
     type: "Certificate",
   },
@@ -59,6 +63,7 @@ const certificates = [
     issuer: "Cisco Networking Academy",
     date: "Feb 11, 2025",
     file: "assets/certificates/discovering-entrepreneurship.pdf",
+    image: "assets/certificates/discovering-entrepreneurship.png",
     type: "Certificate",
   },
   {
@@ -66,6 +71,7 @@ const certificates = [
     issuer: "Cisco Networking Academy",
     date: "Jan 17, 2025",
     file: "assets/certificates/introduction-to-cybersecurity.pdf",
+    image: "assets/certificates/introduction-to-cybersecurity.png",
     type: "Certificate",
   },
   {
@@ -73,6 +79,7 @@ const certificates = [
     issuer: "Cisco Networking Academy",
     date: "Dec 15, 2024",
     file: "assets/certificates/introduzione-iot.pdf",
+    image: "assets/certificates/introduzione-iot.png",
     type: "Certificate",
   },
   {
@@ -80,6 +87,7 @@ const certificates = [
     issuer: "C1",
     date: "Add date / exam",
     file: "",
+    image: "assets/certificates/english-proficiency.png",
     type: "Language",
   },
 ];
