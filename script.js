@@ -53,31 +53,61 @@ function createProjectCard(project, index) {
   return card;
 }
 
+function configurePdfWorker() {
+  if (!window.pdfjsLib) return false;
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  return true;
+}
+
+async function renderPdfPage(url, targetWidth) {
+  const pdf = await window.pdfjsLib.getDocument(url).promise;
+  const page = await pdf.getPage(1);
+  const base = page.getViewport({ scale: 1 });
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const scale = (targetWidth / base.width) * dpr;
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.floor(viewport.width);
+  canvas.height = Math.floor(viewport.height);
+  canvas.style.aspectRatio = `${base.width} / ${base.height}`;
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  return canvas;
+}
+
+function showThumbnailFallback(container) {
+  const placeholder = container.querySelector(".cert-pdf-placeholder");
+  if (placeholder) placeholder.innerHTML = `${ICONS.certificate} PDF certificate`;
+}
+
 async function renderPdfThumbnail(container, url, label) {
-  if (!window.pdfjsLib || !url) return;
+  if (!url) return;
+  if (!configurePdfWorker()) {
+    showThumbnailFallback(container);
+    return;
+  }
+  const timer = setTimeout(() => showThumbnailFallback(container), 6000);
   try {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-    const pdf = await window.pdfjsLib.getDocument(url).promise;
-    const page = await pdf.getPage(1);
-    const baseViewport = page.getViewport({ scale: 1 });
-    const scale = Math.min((container.clientWidth - 6) / baseViewport.width, (container.clientHeight - 6) / baseViewport.height);
-    const viewport = page.getViewport({ scale: Math.max(scale, .6) });
-    const canvas = document.createElement("canvas");
+    const width = Math.max(container.clientWidth, 320);
+    const canvas = await renderPdfPage(url, width);
     canvas.className = "cert-pdf-canvas";
-    canvas.width = Math.floor(viewport.width * 1.6);
-    canvas.height = Math.floor(viewport.height * 1.6);
-    const ctx = canvas.getContext("2d");
-    await page.render({ canvasContext: ctx, viewport: page.getViewport({ scale: Math.max(scale, .6) * 1.6 }) }).promise;
     container.innerHTML = "";
     container.appendChild(canvas);
+    container.classList.add("has-preview");
   } catch (error) {
     console.warn(`Could not render ${label}`, error);
+    showThumbnailFallback(container);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 function createCertificateCard(cert, index) {
   const card = document.createElement("article");
   card.className = `cert-card${cert.featured ? " featured-cert" : ""}`;
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("aria-label", `${cert.title} — ${cert.issuer}. Open preview`);
   const isPdf = Boolean(cert.file && /\.pdf($|\?)/i.test(cert.file));
   const isImage = Boolean(cert.file && /\.(png|jpe?g|webp|gif)($|\?)/i.test(cert.file));
   card.innerHTML = `
@@ -90,21 +120,106 @@ function createCertificateCard(cert, index) {
     <div class="cert-bottom"><span>${cert.date}</span><span>${cert.file ? `${ICONS.certificate} View` : "details"}</span></div>
   `;
   const preview = card.querySelector(".cert-preview");
+  if (isImage) preview.classList.add("has-preview");
   if (isPdf) renderPdfThumbnail(preview, cert.file, cert.title);
   card.addEventListener("click", () => openCertificate(cert));
+  card.addEventListener("keydown", event => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openCertificate(cert);
+    }
+  });
   return card;
 }
 
-function openCertificate(cert) {
+async function openCertificate(cert) {
   modalContent.innerHTML = `<p class="eyebrow">${cert.type || "Certificate"}</p><h3>${cert.title}</h3><p>${cert.issuer} · ${cert.date}</p>`;
-  if (cert.file) {
-    const isImage = /\.(png|jpe?g|webp|gif)($|\?)/i.test(cert.file);
-    if (isImage) modalContent.insertAdjacentHTML("beforeend", `<img class="modal-media" src="${cert.file}" alt="${cert.title}" />`);
-    else modalContent.insertAdjacentHTML("beforeend", `<p>${ICONS.certificate} <a class="text-link" href="${cert.file}" target="_blank" rel="noreferrer">Open certificate PDF ↗</a></p>`);
-  } else {
+  if (typeof modal.showModal === "function" && !modal.open) modal.showModal();
+
+  if (!cert.file) {
     modalContent.insertAdjacentHTML("beforeend", `<p>Add the certificate image/PDF to <code>assets/certificates</code> and set its path in <code>content.js</code>.</p>`);
+    return;
   }
-  if (typeof modal.showModal === "function") modal.showModal();
+
+  if (/\.(png|jpe?g|webp|gif)($|\?)/i.test(cert.file)) {
+    modalContent.insertAdjacentHTML("beforeend", `<img class="modal-media" src="${cert.file}" alt="${cert.title}" />`);
+  } else if (configurePdfWorker()) {
+    const frame = document.createElement("div");
+    frame.className = "modal-media modal-media-pdf";
+    frame.textContent = "Loading certificate…";
+    modalContent.appendChild(frame);
+    try {
+      const canvas = await renderPdfPage(cert.file, 1100);
+      frame.textContent = "";
+      frame.appendChild(canvas);
+    } catch (error) {
+      console.warn(`Could not render ${cert.title}`, error);
+      frame.remove();
+    }
+  }
+
+  modalContent.insertAdjacentHTML(
+    "beforeend",
+    `<p class="modal-actions"><a class="text-link" href="${cert.file}" target="_blank" rel="noreferrer">${ICONS.external} Open original ↗</a></p>`
+  );
+}
+
+const TICKER_SPEED = 90; // px per second
+
+function setupTicker() {
+  const track = document.querySelector(".ticker-track");
+  if (!track) return;
+  const unitHtml = track.innerHTML;
+
+  // The marquee loops by shifting one copy's width, so the track has to stay
+  // wider than the viewport for the whole cycle.
+  const fill = () => {
+    track.innerHTML = unitHtml;
+    const unitWidth = track.scrollWidth;
+    if (!unitWidth) return;
+    const copies = Math.max(2, Math.ceil((window.innerWidth * 2) / unitWidth) + 1);
+    track.innerHTML = unitHtml.repeat(copies);
+    track.style.setProperty("--marquee-shift", `${-100 / copies}%`);
+    track.style.animationDuration = `${unitWidth / TICKER_SPEED}s`;
+  };
+
+  fill();
+  if (document.fonts?.ready) document.fonts.ready.then(fill);
+
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fill, 200);
+  });
+}
+
+function setupReveal() {
+  const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const targets = document.querySelectorAll(".section-heading, .project-card, .cert-card, .skill-row, .language-card, .about-copy, .link-box, .contact-inner");
+  if (prefersReduced || !("IntersectionObserver" in window)) {
+    targets.forEach(el => el.classList.add("is-visible"));
+    return;
+  }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("is-visible");
+      observer.unobserve(entry.target);
+    });
+  }, { rootMargin: "0px 0px -10% 0px", threshold: 0.12 });
+
+  targets.forEach(el => {
+    el.classList.add("reveal");
+    observer.observe(el);
+  });
+}
+
+function setupScrollState() {
+  const header = document.querySelector(".site-header");
+  if (!header) return;
+  const onScroll = () => header.classList.toggle("is-stuck", window.scrollY > 12);
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
 }
 
 function render() {
@@ -138,6 +253,10 @@ function render() {
     contactEmail.href = `mailto:${SITE.email}`;
     contactEmail.textContent = `${SITE.email} ↗`;
   }
+
+  setupTicker();
+  setupReveal();
+  setupScrollState();
 }
 
 modalClose.addEventListener("click", () => modal.close());
