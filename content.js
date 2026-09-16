@@ -9,6 +9,18 @@ const SITE = {
 
 /* ---------- SELECTED PROJECTS ---------- */
 const projects = [
+    {
+    title: "World Disasters",
+    year: "2026",
+    category: "Web / API",
+    description:
+      "A website that shows you the map of all the ongoing and latest natural disasters like wildfires, storms, volcanoes ecc.. (Web Based) ",
+    tags: ["HTML", "CSS", "JavaScript", "API", "LEAFLET"],
+    github: "https://github.com/Saqlvation/WorldDIsasters/",
+    demo: "https://world-d-isasters.vercel.app/",
+    short: "WorldDisasters",
+    image: "assets/projects/disasters.png",
+  },
   {
     title: "LiminalGenerator",
     year: "2026",
@@ -90,6 +102,7 @@ const certificates = [
     image: "assets/certificates/english-proficiency.png",
     type: "Language",
   },
+  
 ];
 
 /* ---------- OPTIONAL EXTRA BADGES ---------- */
