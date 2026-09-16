@@ -85,8 +85,8 @@ const certificates = [
   {
     title: "English proficiency",
     issuer: "C1",
-    date: "Add date / exam",
-    file: "",
+    date: "April 2026",
+    file: "n/a",
     image: "assets/certificates/english-proficiency.png",
     type: "Language",
   },
